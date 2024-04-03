@@ -1,8 +1,7 @@
 import numpy as np
 import kinpy as kp
+import math
 from scipy.spatial.transform import Rotation as R
-import time
-
 
 from util import display_image
 from rasrobot import RASRobot, TIME_STEP
@@ -98,43 +97,157 @@ class UR5e(RASRobot):
         ik_result = self.chain.inverse_kinematics(target_pose, self.joint_pos())
         return ik_result
         
-    def hover_between_poses(self, poses, iterations=10):
+    def pixel_to_base_frame(self, pixel_x, pixel_y, depth_z, intrinsic_matrix, transformation_matrix):
         """
-        Makes the robot arm hover between two poses.
-
-        :param poses: A list of two kinpy.Transform objects representing target poses.
-        :param iterations: How many times to move back and forth.
-        """
-        for _ in range(iterations):
-            for pose in poses:
-                # Compute the inverse kinematics to get the joint positions for the target pose.
-                joint_positions = self.inverse_kinematics(pose)
-
-                # Move the robot arm to the computed joint positions.
-                success = self.move_to_joint_pos(joint_positions)
-                if not success:
-                    print("Movement to target position failed or timed out")
-
-                # Wait a bit before moving to the next position to simulate hovering.
-                time.sleep(1)
+        Transform pixel coordinates to robot base frame coordinates.
     
+        Parameters:
+        pixel_x (float): The x-coordinate in pixel.
+        pixel_y (float): The y-coordinate in pixel.
+        depth_z (float): The depth in meters from the camera frame.
+        intrinsic_matrix (np.array): The camera's intrinsic matrix.
+        transformation_matrix (np.array): The transformation matrix from the camera to the robot base frame.
+    
+        Returns:
+        np.array: The (x, y, z) coordinates in the robot base frame.
+        """
+        # Convert pixel coordinates to normalized image coordinates
+        pixel_point = np.array([pixel_x, pixel_y, 1])
+        normalized_point = np.linalg.inv(intrinsic_matrix).dot(pixel_point)
+    
+        # Scale by the depth to get the point in the camera's 3D space
+        camera_frame_point = normalized_point * depth_z
+    
+        # Convert the point to homogenous coordinates by adding a 1
+        camera_frame_point_homogeneous = np.append(camera_frame_point, 1)
+    
+        # Apply the transformation matrix to get the point in the robot base frame
+        base_frame_point_homogeneous = transformation_matrix.dot(camera_frame_point_homogeneous)
+    
+        # Convert back to non-homogeneous coordinates (drop the last element)
+        base_frame_point = base_frame_point_homogeneous[:3]
+    
+        return base_frame_point
         
+    def convert_detections_to_base_frame(self, detections, depth_z, intrinsic_matrix, transformation_matrix):
+        """
+        Convert a list of detections from pixel coordinates to the robot base frame coordinates.
+    
+        Parameters:
+        detections (list of dicts): Each detection is a dictionary with centroid (x, y) and size.
+        depth_z (float): The depth in meters from the camera frame.
+        intrinsic_matrix (np.array): The camera's intrinsic matrix.
+        transformation_matrix (np.array): The transformation matrix from the camera to the robot base frame.
+    
+        Returns:
+        list: A list of dictionaries, each containing the object's centroid in robot base frame coordinates and size.
+        """
+        converted_detections = []
+    
+        for detection in detections:
+            pixel_x, pixel_y = detection['centroid']
+            size = detection['size']
+            
+            # Use the earlier defined pixel_to_base_frame function here
+            base_frame_point = self.pixel_to_base_frame(pixel_x, pixel_y, depth_z, intrinsic_matrix, transformation_matrix)
+            
+            converted_detections.append({
+                'centroid': base_frame_point,
+                'size': size
+            })
+    
+        return converted_detections
+    
+    def approach_object(self, object_centroid, approach_height=0.05):
+        # Compute the target position above the object
+        target_position_above_object = np.array([
+            object_centroid[0], 
+            object_centroid[1], 
+            object_centroid[2] + approach_height
+        ])
         
+        # Compute the joint positions for the target position
+        target_joint_pos = self.inverse_kinematics(target_position_above_object)
+        
+        # Move the robot to the computed joint positions
+        self.move_to_joint_pos(target_joint_pos)
+        
+    def grasp_object(self, object_centroid):
+        # Lower to the object's position
+        target_joint_pos = self.inverse_kinematics(object_centroid)
+        self.move_to_joint_pos(target_joint_pos)
+        
+        # Close the gripper to grasp the object
+        self.close_gripper()
+        
+        # Optionally, lift the object slightly for clearance
+        self.move_to_joint_pos(self.joint_pos(), target_joint_pos[2] + 0.05)
+
+    def move_to_tray_and_release(self, tray_position):
+        # Move above the tray
+        target_joint_pos = self.inverse_kinematics(tray_position)
+        self.move_to_joint_pos(target_joint_pos)
+        
+        # Open the gripper to release the object
+        self.open_gripper()
+        
+# Class initialization and setup omitted for brevity...
+
 if __name__ == '__main__':
-    # initialise robot and move to home position
+    # Initialize robot and move to home position
     robot = UR5e()
-    # robot.move_to_joint_pos(robot.home_pos)
-    # robot.close_gripper()
+    robot.move_to_joint_pos(robot.home_pos)
+    # robot.close_gripper()  # Ensure gripper functions are properly implemented
     # robot.open_gripper()
-    pose1 = [0.4, 0.0, 0.2]
-    pose2 = [0.4, 0.3, 0.4]
-    robot.hover_between_poses([pose1, pose2], iterations=10)
     
+    # Set up the camera's intrinsic matrix based on the simulation parameters
+    field_of_view = 1  # Field of view in radians
+    image_width = 128  # Image width in pixels
+    image_height = 64  # Image height in pixels
     
-    # display the camera image
+    # Focal length calculation based on field of view and image dimensions
+    focal_length_x = image_width / (2 * math.tan(field_of_view / 2))
+    focal_length_y = image_height / (2 * math.tan(field_of_view / 2))  # Assumes square pixels
+    
+    # Optical center calculation
+    optical_center_x = image_width / 2
+    optical_center_y = image_height / 2
+    
+    # Construct the intrinsic matrix
+    intrinsic_matrix = np.array([
+        [focal_length_x, 0, optical_center_x],
+        [0, focal_length_y, optical_center_y],
+        [0, 0, 1]
+    ])
+    
+    # Define the transformation matrix (assuming no rotation and a translation of 0.05m in Z)
+    transformation_matrix = np.array([
+        [1, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 1, 0.05],
+        [0, 0, 0, 1]
+    ])
+    
+    # Set the depth value, assuming a constant height for objects on the table
+    depth_z = 0.1  # Example depth value in meters
+    
+    # Obtain the camera image and detect objects
     img = robot.get_camera_image()
-    objects = detect_objects(img)
-    print (objects)
-    # print(f"Detected {len(objects)} objects.")
-    display_image(img, 'camera view', wait=True)  # waits for key input
+    detected_objects = detect_objects(img)
+    
+    # Convert the object detections to robot base frame coordinates
+    base_frame_detections = robot.convert_detections_to_base_frame(detected_objects, depth_z, intrinsic_matrix, transformation_matrix)
+    print(base_frame_detections)
+    
+    for object_info in base_frame_detections:
+        centroid = object_info['centroid']
+        robot.approach_object(centroid)
+        robot.grasp_object(centroid)
+        tray_position = np.array([0.5, 0.0, 0.2])  # Define tray position
+        robot.move_to_tray_and_release(tray_position)
+    # Display the camera image and detected objects
+    display_image(img, 'Camera View')
+    # Displaying the number of detected objects (uncomment if needed)
+    # print(f"Detected {len(detected_objects)} objects.")
+
     
