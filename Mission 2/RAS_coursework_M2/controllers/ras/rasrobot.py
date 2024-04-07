@@ -10,7 +10,11 @@ TIME_STEP = 32
 
 
 class RASRobot:
-   
+    #
+    # PLEASE DO NOT MODIFY THE CODE. WHEN MARKING, THIS FILE WILL BE OVERWRITTEN.
+    # PLEASE DO NOT MODIFY THE CODE. WHEN MARKING, THIS FILE WILL BE OVERWRITTEN.
+    # PLEASE DO NOT MODIFY THE CODE. WHEN MARKING, THIS FILE WILL BE OVERWRITTEN.
+    #
     def __init__(self):
         self.__sup = Supervisor()
         self.__sup.getDevice("camera").enable(TIME_STEP)
@@ -39,7 +43,12 @@ class RASRobot:
             
         # shuffle the cubes
         self.__reset_scene()
-          
+         
+    #
+    # PLEASE DO NOT MODIFY THE CODE. WHEN MARKING, THIS FILE WILL BE OVERWRITTEN.
+    # PLEASE DO NOT MODIFY THE CODE. WHEN MARKING, THIS FILE WILL BE OVERWRITTEN.
+    # PLEASE DO NOT MODIFY THE CODE. WHEN MARKING, THIS FILE WILL BE OVERWRITTEN.
+    #   
     def __reset_scene(self):
         rng = np.random.default_rng()
         
@@ -50,7 +59,11 @@ class RASRobot:
             quaternion = quaternion / np.linalg.norm(list(quaternion))
             rotation_field.setSFRotation(quaternion.tolist())
      
-       
+    #
+    # PLEASE DO NOT MODIFY THE CODE. WHEN MARKING, THIS FILE WILL BE OVERWRITTEN.
+    # PLEASE DO NOT MODIFY THE CODE. WHEN MARKING, THIS FILE WILL BE OVERWRITTEN.
+    # PLEASE DO NOT MODIFY THE CODE. WHEN MARKING, THIS FILE WILL BE OVERWRITTEN.
+    #       
     def close_gripper(self, timeout=1.2):
         """
         blocking behaviour that will close the gripper
@@ -61,7 +74,11 @@ class RASRobot:
         for step in range(int(timeout * 1000) // TIME_STEP):
             self.step()
     
-        
+    #
+    # PLEASE DO NOT MODIFY THE CODE. WHEN MARKING, THIS FILE WILL BE OVERWRITTEN.
+    # PLEASE DO NOT MODIFY THE CODE. WHEN MARKING, THIS FILE WILL BE OVERWRITTEN.
+    # PLEASE DO NOT MODIFY THE CODE. WHEN MARKING, THIS FILE WILL BE OVERWRITTEN.
+    #        
     def open_gripper(self, timeout=1.2):
         """
         blocking behaviour that will open the gripper
@@ -72,14 +89,22 @@ class RASRobot:
         for step in range(int(timeout * 1000) // TIME_STEP):
             self.step()
     
-         
+    #
+    # PLEASE DO NOT MODIFY THE CODE. WHEN MARKING, THIS FILE WILL BE OVERWRITTEN.
+    # PLEASE DO NOT MODIFY THE CODE. WHEN MARKING, THIS FILE WILL BE OVERWRITTEN.
+    # PLEASE DO NOT MODIFY THE CODE. WHEN MARKING, THIS FILE WILL BE OVERWRITTEN.
+    #        
     def step(self):
         """
         step function of the simulation
         """
         self.__sup.step()
     
-         
+    #
+    # PLEASE DO NOT MODIFY THE CODE. WHEN MARKING, THIS FILE WILL BE OVERWRITTEN.
+    # PLEASE DO NOT MODIFY THE CODE. WHEN MARKING, THIS FILE WILL BE OVERWRITTEN.
+    # PLEASE DO NOT MODIFY THE CODE. WHEN MARKING, THIS FILE WILL BE OVERWRITTEN.
+    #        
     def get_camera_image(self):
         """
         This method returns a NumPy array representing the latest image captured by the camera.

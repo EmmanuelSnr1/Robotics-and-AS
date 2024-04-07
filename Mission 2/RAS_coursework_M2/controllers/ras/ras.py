@@ -7,6 +7,49 @@ from util import display_image
 from rasrobot import RASRobot, TIME_STEP
 from object_detection import detect_objects
 
+"""
+MISSION 2: Control of a Robot Manipulator Arm for a Pick and Place Task
+Learning outcomes: 1, 2, 3
+
+Scenario:
+A manipulator arm is equipped with a camera at its end-effector. 
+The existing controller already provides behaviours to move
+the robot in joint and/or task space and to open/close the gripper.
+There are five cubes randomly distributed in the robot's work space,
+and there is a crate, which is always in the same spot.
+
+Task: 
+Use the camera to detect the cubes. Implement a controller for the 
+manipulator arm that clears the objects from the table and drops 
+them into the crate.
+
+Hints:
+1) INSTALLATION
+The project requires the kinpy library, which you should install into
+your environment. It is an open source library, so you can directly 
+look at the code on github.
+
+2) TRANSFORMS
+You can move the robot in task space by computing the inverse kinematics.
+The kinpy.Transform object describes the pose in task space. 
+See more details here: 
+https://github.com/neka-nat/kinpy/blob/master/kinpy/transform.py
+It consists of a pos (position as [x, y, z]) and rot (rotation). 
+The rotation is a quaternion in the [w, x, y, z] format. You can include
+other libraries to convert between rotation representations, such as 
+rotation matrices, axis-angle, and Euler angles. Just be aware that some
+there is an alternative convention for the order of elements in a quaternion,
+which is [x, y, z, w] - it is a common source of errors.
+scipy.spatial.transform could be a good option, but it uses the [x, y, z, w]
+convention, so you would need to convert the quaternions.
+
+3) GRASPING
+Simulating contact-rich tasks is very difficult. You might notice that
+the cubes sometimes act unexpectedly when being grasped.
+It is generally a good idea to align the gripper as best as possible to the 
+parallel surfaces of the cube, and to only move with low velocity when
+picking up an object.
+"""
 
 class UR5e(RASRobot):
     def __init__(self):
@@ -37,6 +80,13 @@ class UR5e(RASRobot):
         this is the home configuration of the robot 
         """
         return [1.57, -1.57, 1.57, -1.57, -1.57, 0.0]
+
+    def drop_off_position(self):
+        """ 
+        this is the home configuration of the robot 
+        """
+        return [3.00, -1.50, 1.30, -1.57, -1.57, 0.0]
+
 
     def joint_pos(self):
         """
@@ -112,7 +162,7 @@ class UR5e(RASRobot):
         np.array: The (x, y, z) coordinates in the robot base frame.
         """
         # Convert pixel coordinates to normalized image coordinates
-        pixel_point = np.array([pixel_x, pixel_y, 1])
+        pixel_point = np.array([pixel_x, pixel_y, 0.3])
         normalized_point = np.linalg.inv(intrinsic_matrix).dot(pixel_point)
     
         # Scale by the depth to get the point in the camera's 3D space
@@ -158,38 +208,7 @@ class UR5e(RASRobot):
     
         return converted_detections
     
-    def approach_object(self, object_centroid, approach_height=0.05):
-        # Compute the target position above the object
-        target_position_above_object = np.array([
-            object_centroid[0], 
-            object_centroid[1], 
-            object_centroid[2] + approach_height
-        ])
-        
-        # Compute the joint positions for the target position
-        target_joint_pos = self.inverse_kinematics(target_position_above_object)
-        
-        # Move the robot to the computed joint positions
-        self.move_to_joint_pos(target_joint_pos)
-        
-    def grasp_object(self, object_centroid):
-        # Lower to the object's position
-        target_joint_pos = self.inverse_kinematics(object_centroid)
-        self.move_to_joint_pos(target_joint_pos)
-        
-        # Close the gripper to grasp the object
-        self.close_gripper()
-        
-        # Optionally, lift the object slightly for clearance
-        self.move_to_joint_pos(self.joint_pos(), target_joint_pos[2] + 0.05)
-
-    def move_to_tray_and_release(self, tray_position):
-        # Move above the tray
-        target_joint_pos = self.inverse_kinematics(tray_position)
-        self.move_to_joint_pos(target_joint_pos)
-        
-        # Open the gripper to release the object
-        self.open_gripper()
+    
         
 # Class initialization and setup omitted for brevity...
 
@@ -220,7 +239,7 @@ if __name__ == '__main__':
         [0, 0, 1]
     ])
     
-    # Define the transformation matrix (assuming no rotation and a translation of 0.05m in Z)
+    # Define the transformation matrix (there is no rotation and a translation of 0.05m in Z)
     transformation_matrix = np.array([
         [1, 0, 0, 0],
         [0, 1, 0, 0],
@@ -228,26 +247,53 @@ if __name__ == '__main__':
         [0, 0, 0, 1]
     ])
     
-    # Set the depth value, assuming a constant height for objects on the table
-    depth_z = 0.1  # Example depth value in meters
+    # Set the depth value, a constant height for objects on the table
+    depth_z = 0.3  # Example depth value in meters
     
     # Obtain the camera image and detect objects
     img = robot.get_camera_image()
     detected_objects = detect_objects(img)
+    # print(detected_objects)
     
     # Convert the object detections to robot base frame coordinates
     base_frame_detections = robot.convert_detections_to_base_frame(detected_objects, depth_z, intrinsic_matrix, transformation_matrix)
-    print(base_frame_detections)
+    # print(base_frame_detections)
     
-    for object_info in base_frame_detections:
-        centroid = object_info['centroid']
-        robot.approach_object(centroid)
-        robot.grasp_object(centroid)
-        tray_position = np.array([0.5, 0.0, 0.2])  # Define tray position
-        robot.move_to_tray_and_release(tray_position)
+
+    for detection in base_frame_detections:
+        centroid = detection['centroid']
+        
+        # Create a target pose for picking the object
+        target_pose = kp.Transform()
+        target_pose = robot.forward_kinematics()
+        
+        
+        x_val = centroid[0]
+        y_val = centroid[1]
+        
+        z_val = centroid[2]
+
+       
+        
+        print("the z val: ", z_val)
+        target_pose.pos = np.array([x_val*0.5, y_val*2, depth_z])
+        
+        # Compute the joint positions needed to achieve the target pose
+        joint_positions = robot.inverse_kinematics(target_pose)
+        
+        if joint_positions is not None:
+            # Move to the target joint positions
+            robot.move_to_joint_pos(joint_positions, timeout=5, velocity=0.5)
+            robot.close_gripper()  # Pick the object
+            
+            robot.move_to_joint_pos(robot.drop_off_position(), timeout=5, velocity=0.5)
+            robot.open_gripper()
+            
+            robot.move_to_joint_pos(robot.home_pos)
+
+    
     # Display the camera image and detected objects
     display_image(img, 'Camera View')
-    # Displaying the number of detected objects (uncomment if needed)
     # print(f"Detected {len(detected_objects)} objects.")
 
     
