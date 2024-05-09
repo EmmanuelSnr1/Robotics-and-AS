@@ -275,7 +275,7 @@ if __name__ == '__main__':
 
        
         
-        print("the z val: ", z_val)
+        # print("the z val: ", z_val)
         target_pose.pos = np.array([x_val*0.5, y_val*2, depth_z])
         
         # Compute the joint positions needed to achieve the target pose
@@ -294,6 +294,6 @@ if __name__ == '__main__':
     
     # Display the camera image and detected objects
     display_image(img, 'Camera View')
-    # print(f"Detected {len(detected_objects)} objects.")
+    print(f"Detected {len(detected_objects)} objects.")
 
     
