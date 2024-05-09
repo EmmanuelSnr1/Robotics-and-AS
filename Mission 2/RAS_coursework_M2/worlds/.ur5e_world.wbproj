@@ -6,6 +6,6 @@ minimizedPerspectives: 000000ff00000000fd000000010000000100000329000003cefc02000
 maximizedDockId: -1
 centralWidgetVisible: 1
 orthographicViewHeight: 1
-textFiles: 0 "controllers/ras/ras.py" "controllers/ras/util.py" "controllers/ras/object_detection.py" "controllers/ras/rasrobot.py" "controllers/ras/motion_control.py" "worlds/ur5e_world.wbt"
+textFiles: 0 "../../Mission 2/RAS_coursework_M2/controllers/ras/ras.py" "../../Mission 2/RAS_coursework_M2/controllers/ras/util.py" "../../Mission 2/RAS_coursework_M2/controllers/ras/object_detection.py" "../../Mission 2/RAS_coursework_M2/controllers/ras/rasrobot.py" "../../Mission 2/RAS_coursework_M2/worlds/ur5e_world.wbt"
 consoles: Console:All:All
 renderingDevicePerspectives: UR5e:camera;1;0.5;0;0
