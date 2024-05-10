@@ -24,12 +24,13 @@ import math
 from controller import Robot
 from keyboardreader import KeyboardReader
 from goalchecker import get_goals_in_range
+from planner import PDDLPlanner
+from navigator import Navigator
 
 robot = Robot()
-
 timestep = int(robot.getBasicTimeStep())
 
-
+# Initialize devices
 l_motor = robot.getDevice("wheel_left_joint")
 r_motor = robot.getDevice("wheel_right_joint")
 lidar = robot.getDevice("lidar")
@@ -43,14 +44,37 @@ r_motor.setPosition(math.inf)
 l_motor.setVelocity(0)
 r_motor.setVelocity(0)
 
+# Initialize modules
+planner = PDDLPlanner('domain.pddl', 'problem.pddl')
 keyboard = KeyboardReader(timestep)
+navigator = Navigator(robot)
 
-while (robot.step(timestep) != -1):
+goal_queue = []
+current_plan = []
+
+while robot.step(timestep) != -1:
     command = keyboard.get_command()
     if command is not None:
         print(f'Got command: {command}')
+        goal_queue.extend(command.split(','))
 
-    # print('The robot is next to', get_goals_in_range(*gps.getValues()[0:2]))
-    
+    # Check if there are goals in the queue and if we need to generate a new plan
+    if goal_queue and not current_plan:
+        current_goal = goal_queue[0]
+        # Modify the problem file to set the new goal (if needed)
+        # planner = PDDLPlanner('domain.pddl', 'problem.pddl')  # Reinitialize planner if problem file changes
+        current_plan = planner.plan()
+        print(f'Generated plan: {current_plan}')
+
+    if current_plan:
+        # Execute the current step in the plan
+        current_step = current_plan[0]
+        if navigator.execute_plan_step(current_step):
+            current_plan.pop(0)  # Remove the completed step from the plan
+            if not current_plan:
+                print(f'Goal {goal_queue.pop(0)} achieved.')  # Remove the achieved goal from the queue
+
+    # Perform obstacle avoidance and general navigation
+    navigator.navigate() 
 
 
