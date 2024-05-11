@@ -2,7 +2,7 @@ import os
 from pyperplan.pddl.parser import Parser
 from pyperplan.grounding import ground
 from pyperplan.search import a_star
-from pyperplan.heuristics.blind import BlindHeuristic
+from pyperplan.heuristics.relaxation import hFFHeuristic  # Import hFF heuristic
 from pyperplan.search.searchspace import make_root_node
 
 class PDDLPlanner:
@@ -21,13 +21,15 @@ class PDDLPlanner:
         # Ground the problem
         print("Grounding the problem...")
         task = ground(problem)
+        print(f"Grounded Task: {task}")
         
-        # Use the blind heuristic
-        heuristic = BlindHeuristic(task)
+        # Use the hFF heuristic
+        heuristic = hFFHeuristic(task)
 
         # Create the initial search node
         print("Creating initial search node...")
         root_node = make_root_node(task.initial_state)
+        print(f"Initial State: {root_node.state}")
 
         # Use A* search algorithm to find a plan
         print("Searching for a plan...")
@@ -41,8 +43,8 @@ class PDDLPlanner:
             return []
 
 # Example usage:
-# if __name__ == "__main__":
-    # planner = PDDLPlanner('domain.pddl', 'problem.pddl')
-    # plan = planner.plan()
-    # for step in plan:
-        # print(step)
+if __name__ == "__main__":
+    planner = PDDLPlanner('domain.pddl', 'problem.pddl')
+    plan = planner.plan()
+    for step in plan:
+        print(step)
