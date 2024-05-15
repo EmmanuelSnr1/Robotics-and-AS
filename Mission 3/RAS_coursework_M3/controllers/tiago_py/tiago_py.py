@@ -119,7 +119,7 @@ while robot.step(timestep) != -1:
     navigator.navigate()
 
     # Check if the robot has reached the target location
-    if navigator.target_location and navigator.is_at_location(navigator.target_location, threshold=0.8):
+    if navigator.target_location and navigator.is_at_location(navigator.target_location, threshold=0.8): #This thresholding is currently setting to reach at a reasonable distance but i will leave it like this. 
         print(f'Reached location: {navigator.target_location}')
         behaviour = Chill()  # Transition to Chill state
         navigator.target_location = None  # Clear the target location
