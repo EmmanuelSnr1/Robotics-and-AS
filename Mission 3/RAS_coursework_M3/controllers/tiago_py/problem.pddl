@@ -17,6 +17,6 @@
     (cangowest room4 room2)
   )
   (:goal
-    (in bot room4)
+    (in bot room2)
   )
 )
